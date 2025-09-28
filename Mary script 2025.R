@@ -4,7 +4,7 @@
 ## packages
 library(tidyverse)
 library(nlme)
-library(MuMIn)
+#library(MuMIn)
 library(car)
 library(ggplot2)
 library(effects)
@@ -12,18 +12,109 @@ library(effects)
 
 #Read in data ----
 density <- read.csv(file = "./density_2025.csv")
+growth <- read.csv(file = "./biol402_growth_shoot_data.csv")
 
-density <- density %>%
-  unite("Trt.comb", c(Trt_density, Treament)) %>%
-  mutate(density_diff = sept_16_density - sept_6_densityF)
+## clean data
+### add treatment combined term, and density difference term, rename plot number. 
+density1 <- density %>%
+  mutate(Trt.comb = paste(Trt_density, Treament, sep = "_")) %>%
+  mutate(density_diff = sept_16_density - sept_6_density) %>%
+  rename(Pl.no = plot) %>%
+  mutate(Pl.no = as.character(Pl.no))
+
+#add treatment names, replace NAs with 0, make all data columns numeric
+growth1 <- growth %>%
+  mutate(Trt.comb = paste(trt_density, trt, sep = "_")) %>%
+  mutate(across(lf1_full:bblf_3, .fns = as.numeric)) %>%
+  mutate(across(internode1:internode23, .fns = as.numeric)) %>%
+  mutate_all(~replace_na(., 0))
+
+## calculate leaf extension from data to include baby leaves and reference length. what to do with ref_length? i think our measurements (leaf length, baby leaves) do not include it... but the diagram suggests that leaf length should include it. 
+growth2 <- growth1 %>%
+  mutate(total.ext.calc = lf1_new + lf2_new + lf3_new + lf4_new + lf5_new + lf6_new + lf7_new + lf8_new + bblf_1 + bblf_2 + bblf_3 + ref_length) %>%
+  mutate(RGR.calc = total.ext.calc / sheath_length) %>%
+  mutate(RGR.day.calc = RGR.calc/growth_days) 
+
+#fix mysterious problem with plot heading, count baby leaves, leaves and internodes. 
+growth2 <- growth2 %>%
+  rename(Pl.no = plot) %>%
+  mutate(Pl.no = as.character(Pl.no)) %>%
+  rowwise() %>%
+  mutate(bblf_count = sum(c_across(bblf_1:bblf_3) > 0, na.rm = TRUE)) %>%
+  mutate(no_leaves = sum(c(lf1_full, lf2_full, lf3_full, lf4_full, lf5_full, lf6_full, lf7_full, lf8_full, lf9_full) > 0, na.rm = TRUE)) %>%
+  mutate(no_rhiz_int = sum(c_across(internode1:internode23) > 0, na.rm = TRUE)) %>%
+  mutate(plt_int = growth_days/bblf_count)
+
+## results of quality control (later in code)
+## i have most confidence in shoot length and sheath length, which would have been measured before the leaves were cut. 
+## total shoot length would be node 0 to tip of longest leaf. So that should be the same as longest leaf length plus sheath length.
+## total leaf extension estimate should include ref_length. 
+
+## rows to remove b/c of possible errors in how leaf length was estimated 
+#plot 12 shoots 2,3; plot 14 shoot 1, plot 9 shoot 2 (TA data), plot 21 shoot 3 (TA); plot 20 something is wrong; plot 10 shoot 2, plot 6 shoot 1, plot 8 shoot 2
+
+## rows with problems, based on comparing max shoot length to leaf lengths
+growth3 <- growth2 %>%
+  filter(!(Pl.no == "2" & shoot == "2")) %>%
+  filter(!(Pl.no == "14" & shoot == "1")) %>%
+  filter(!(Pl.no == "9" & shoot == "2")) %>%
+  filter(!(Pl.no == "21" & shoot == "3")) %>%
+  filter(!(Pl.no == "10" & shoot == "2")) %>%
+  filter(!(Pl.no == "6" & shoot == "1")) %>%
+  filter(!(Pl.no == "8" & shoot == "2")) %>%
+  filter(!(Pl.no == "12" & shoot == "2")) %>%
+  filter(!(Pl.no == "12" & shoot == "3")) %>%
+  filter(!(Pl.no == "1" & shoot == "3")) # maybe its in TA data
+
+# relative to max_leaf 3 estimate: 
+# for plot 22: leaf length = leaf + sheath length
+# for plot 1, plot 11 shoot 1, : leaf length = from node 0
+# for plot 2: leaf + ref length?
+
+growth4 <- growth3 %>%
+  mutate(max_leaf = max(c_across(c(lf1_full, lf2_full, lf3_full, lf4_full, lf5_full, lf6_full, lf7_full, lf8_full)))) %>%
+  mutate(max_leaf2 = max_leaf + sheath_length) %>%
+  mutate(max_leaf3 = max_leaf + ref_length) %>% # shoot length
+  mutate(max_leaf4 = ifelse(Pl.no == 1, max_leaf, max_leaf3)) %>%
+  mutate(max_leaf4 = ifelse((Pl.no == 11 & shoot == 1), max_leaf, max_leaf4)) %>%
+  mutate(max_leaf4 = ifelse((Pl.no == 22), max_leaf2, max_leaf4))
+
+# max_leaf4 is the best estimate for max leaf. to get leaf extension, i think i have to make those corrections to each leaf for those adjusted plots.   
+
+growth5 <- growth4 %>%
+  mutate(tot_ext_corr = ifelse((Pl.no == 11 & shoot == 1), total.ext.calc - no_leaves*ref_length, total.ext.calc)) %>%
+  mutate(tot_ext_corr = ifelse(Pl.no == 1, total.ext.calc - ref_length, total.ext.calc)) %>%
+  mutate(RGR.corr = tot_ext_corr / sheath_length) %>%
+  mutate(RGR.day.corr = RGR.corr/growth_days) 
+
+growth_for_class <- growth5 %>%
+  select( -c("date_marked", "date_collected", "total_lf_ext", "rgr", "rgr_d", "RGR.calc", "RGR.day.calc", "plt_int", "max_leaf", "max_leaf2", "max_leaf3", "max_leaf4", "total.ext.calc", "RGR.corr", "RGR.day.corr", "sheath_width", "trt_density", "trt", "Trt.comb") ) %>%
+  rename(Total_extension = tot_ext_corr) #%>%
+  #rename(Treatment = Trt.comb)
 
 View(density)
 names(density)
+View(growth2)
 
-write.csv(density, "density_class.csv")
+## merge sept 6th density and sept 16th density in here
 
-#Visualization
+data1 <- left_join(density1, growth5, by = "Pl.no")
+data1 <- data1 %>%
+  rename(plot = Pl.no)
 
+data_for_class <- left_join(density1, growth_for_class, by = "Pl.no")
+data_for_class <- data_for_class %>%
+  rename(plot = Pl.no)
+
+View(data1)
+
+
+write.csv(density1, "density_class.csv")
+write.csv(growth_for_class, "growth_class.csv")
+write.csv(data1, "combined.csv")
+
+
+# #Visualization - density ------------------------------------------------
 
 # does subsampling sufficiently approximate the full plot? These is using the quadrat and full data from Sept 6th. 
 subsampling <- ggplot(density, aes(x = Sept.6.quadrat, y = Sept.6.density)) +
@@ -105,3 +196,362 @@ density_diff3 <- ggplot(density, aes(x = sept_16_density, y = density_diff)) +
   ggtitle("Density Diff")  +
   geom_abline(intercept = 0, slope = 0)
 density_diff3
+
+
+
+# #Visualization - growth -------------------------------------------------
+
+# QA/QC: 
+
+
+
+# 1. reference length should be a subset of sheath length, therefore ref_length < sheath length. 
+  RGR.sheath.ref <- ggplot(growth3, aes(x = sheath_length, y = ref_length)) +
+  geom_point() +
+  xlab("sheath length") +
+  ylab("reference length") +
+  ggtitle("RGR.sheath.ref") +
+  geom_abline(intercept = 0, slope = 1)
+RGR.sheath.ref
+
+
+length_test <- ggplot(growth5, aes(x = shoot_length, y = max_leaf4)) +
+  #geom_point() +
+  geom_text(aes(label = Pl.no)) +
+  xlab("shoot_length") +
+  ylab("max_leaf") +
+  ggtitle("length test") +
+  geom_abline(intercept = 0, slope = 1)
+length_test
+
+length_test2 <- ggplot(growth5, aes(x = total.ext.calc, y = tot_ext_corr)) +
+  #geom_point() +
+  geom_text(aes(label = Pl.no)) +
+  xlab("total_ext_calc") +
+  ylab("tot_ext_corr") +
+  ggtitle("length test2") +
+  geom_abline(intercept = 0, slope = 1)
+length_test2
+
+mod1 <- lm(shoot_length ~ sheath_length, data = growth)
+summary(mod1) # gives you the regression analysis
+
+sheath_shoot <- ggplot(growth, aes(x = sheath_length, y = shoot_length)) +
+  geom_point() +
+  xlab("Sheath length") +
+  ylab("Shoot length") +
+  ggtitle("Shoot length and Sheath Length") +
+  geom_abline(intercept = 67.5581, slope = 0.8564) # you can put the results of the regression model in here for XX and YY to plot the line on the graph. 
+
+#this above indicates that for most of them, they measured leaf length from the cut. i cleaned up the exceptions and removed plots i couldn't figure out. some can be restored if students answer questions and with TA data perhaps. 
+
+## the implications of this are that i need to make the same corrections for all leaves as for max leaves. 
+
+
+hist(growth1$RGR.calc)
+
+
+RGR.test <- ggplot(growth5, aes(x = rgr, y = RGR.calc)) +
+  geom_point() +
+  xlab("RGR.excel") +
+  ylab("RGR.script") +
+  ggtitle("RGR.test")
+RGR.test
+
+RGR.test <- ggplot(growth5, aes(x = RGR.calc, y = RGR.corr)) +
+  geom_point() +
+  xlab("RGR.calc") +
+  ylab("RGR.corr") +
+  ggtitle("RGR.test")
+RGR.test
+
+# blades is what they entered in the datasheet. this sometimes (but one always) includes baby leaves. leaves is calculated from the data above using code, and does not include baby leaves. use leaves for analysis
+blades <- ggplot(growth5, aes(x = no_blades, y = no_leaves)) +
+  geom_point() +
+  xlab("no_blades") +
+  ylab("no_leaves") +
+  ggtitle("blades and leaves") +
+  geom_abline(intercept = 0, slope = 1)
+blades
+
+total_leaf_ext <- ggplot(growth5, aes(x = total_lf_ext, y = total.ext.calc)) +
+  geom_point() +
+  xlab("total ext lab sheet") +
+  ylab("total ext calc") +
+  ggtitle("total ext") +
+  geom_abline(intercept = 0, slope = 1)
+total_leaf_ext
+
+shoot_length <- ggplot(growth, aes(x = shoot_length)) +
+  geom_histogram(binwidth=1) +
+  geom_vline(aes(xintercept = mean(shoot_length))) +
+  geom_vline(aes(xintercept = mean(shoot_length) - sd(shoot_length)), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean(shoot_length) + sd(shoot_length)), linetype = "dashed") +
+  xlab("Shoot Length") +
+  ylab("Frequency")
+shoot_length
+
+no_leaves <- ggplot(growth, aes(x = no_leaves)) +
+  geom_histogram(binwidth=.5) +
+  geom_vline(aes(xintercept = mean(no_leaves))) +
+  geom_vline(aes(xintercept = mean(no_leaves) - sd(no_leaves)), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean(no_leaves) + sd(no_leaves)), linetype = "dashed") +
+  xlab("no_leaves") +
+  ylab("Frequency")
+no_leaves
+
+# next steps: remove outliers for now, then create class exercise to describe growth and look for patterns in these data. 
+
+
+# ## exploring relationships among shoot size and growth rate -------------
+
+RGR <- ggplot(growth5, aes(x = RGR.corr)) +
+  geom_histogram(binwidth=1) +
+  geom_vline(aes(xintercept = mean(RGR.corr))) +
+  geom_vline(aes(xintercept = mean(RGR.corr) - sd(RGR.corr)), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean(RGR.corr) + sd(RGR.corr)), linetype = "dashed") +
+  xlab("Relative Growth Rate") +
+  ylab("Frequency")
+RGR
+
+ggsave("RGR.jpg", shoot_length)
+
+Tot_ext <- ggplot(growth5, aes(x = total.ext.calc)) +
+  geom_histogram(binwidth=2) +
+  geom_vline(aes(xintercept = mean(total.ext.calc))) +
+  geom_vline(aes(xintercept = mean(total.ext.calc) - sd(total.ext.calc)), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean(total.ext.calc) + sd(total.ext.calc)), linetype = "dashed") +
+  xlab("Total exentsion") +
+  ylab("Frequency")
+RGR
+
+RGR.sheath <- ggplot(growth5, aes(x = sheath_length, y = RGR.corr, color = Trt.comb)) +
+  geom_point() +
+  xlab("sheath length") +
+  ylab("RGR") +
+  ggtitle("RGR.sheath")
+RGR.sheath
+
+TE.sheath <- ggplot(growth5, aes(x = sheath_length, y = tot_ext_corr, color = Trt.comb)) +
+  geom_point() +
+  xlab("sheath length") +
+  ylab("total_extension") +
+  ggtitle("TE by sheath length") +
+  geom_abline(intercept = 48.4606, slope = 1.7246)
+TE.sheath
+
+mod3c <- lm(tot_ext_corr ~ sheath_length, data = growth5)
+summary(mod3c)
+
+# with or without plot 12, no difference in pattern
+
+RGR.width <- ggplot(growth5, aes(x = sheath_width, y = RGR.corr, color = Trt.comb)) +
+  geom_point() +
+  xlab("sheath width") +
+  ylab("RGR") +
+  ggtitle("RGR.width")
+RGR.width
+
+length.sheath <- ggplot(growth5, aes(x = sheath_length, y = (lf3_full+ ref_length), color = Trt.comb)) +
+  geom_point() +
+  xlab("sheath length") +
+  ylab("Leaf 3 full") +
+  ggtitle("length_sheath")
+length.sheath
+
+length.sheath <- ggplot(growth5, aes(x = sheath_length, y = (shoot_length), color = Trt.comb)) +
+  #geom_point() +
+  geom_text(aes(label = Pl.no)) +
+  xlab("sheath length") +
+  ylab("shoot length") +
+  ggtitle("length_sheath")
+length.sheath
+
+leaves1 <- ggplot(growth5, aes(x = (lf3_full+ ref_length), y = (lf4_full+ ref_length))) +
+  geom_point() +
+  xlab("leaf 3") +
+  ylab("leaf 4") +
+  ggtitle("leaves 3 and 4")
+leaves1
+
+hist(data1$no_leaves)
+
+hist(data1$plt_int)
+
+## summary of morphology: 
+hist(data1$RGR.calc)
+hist(data1$RGR.day.calc)
+hist(data1$total.ext.calc)
+
+# ## testing for effects of experimental treatments -----------------------
+
+density_d_RGR <- ggplot(data1, aes(x = density_diff, y = RGR.calc)) +
+  geom_point() +
+  xlab("Density diff") +
+  ylab("RGR") +
+  ggtitle("RGR")
+density_d_RGR
+
+density_RGR <- ggplot(data1, aes(x = sept_6_density, y = RGR.calc)) +
+  geom_point() +
+  xlab("Density Sept 6") +
+  ylab("RGR") +
+  ggtitle("RGR") 
+density_RGR
+
+
+
+density_F_RGR <- ggplot(data1, aes(x = sept_16_density, y = RGR.calc)) +
+  geom_point() +
+  xlab("Density Sept 16") +
+  ylab("RGR") +
+  ggtitle("RGR") +
+  geom_abline(intercept = 6.36, slope = -0.02)
+density_F_RGR
+
+
+treatments_RGR <- ggplot(growth5, aes(x = Trt.comb, y = RGR.corr)) +
+  geom_boxplot() +
+  geom_point() +
+  xlab("Density Treatment") +
+  ylab("RGR") +
+  ggtitle("RGR")
+treatments_RGR
+
+density_RGR <- ggplot(data1, aes(x = sept_16_density, y = RGR.corr)) +
+  geom_point() +
+  xlab("Density_Final") +
+  ylab("RGR") +
+  ggtitle("RGR")
+density_RGR
+
+density_TE <- ggplot(data1, aes(x = sept_16_density, y = total.ext.calc)) +
+  geom_point() +
+  xlab("Density_Final") +
+  ylab("Tot_ext") +
+  ggtitle("Total leaf Extension") +
+geom_abline(intercept = 104.8242, slope = -.3557)
+density_TE
+
+treatments_RGRd <- ggplot(growth5, aes(x = Trt.comb, y = RGR.day.corr)) +
+  geom_boxplot() +
+  geom_point() +
+  xlab("Density Treatment") +
+  ylab("RGR") +
+  ggtitle("RGR")
+treatments_RGRd
+
+
+treatment_sheath <- ggplot(growth5, aes(x = Trt.comb, y = sheath_length)) +
+  geom_boxplot() +
+  geom_point() +
+  xlab("treatment") +
+  ylab("sheath length") +
+  ggtitle("sheath length")
+treatment_sheath
+
+treatment_tot_ext <- ggplot(growth5, aes(x = Trt.comb, y = tot_ext_corr)) +
+  geom_boxplot() +
+  geom_point() +
+  xlab("treatment") +
+  ylab("total exentsion") +
+  ggtitle("total extension")
+treatment_tot_ext
+
+treatment_max_leaf <- ggplot(growth5, aes(x = Trt.comb, y = max_leaf4)) +
+  geom_boxplot() +
+  geom_point() +
+  xlab("treatment") +
+  ylab("max_leaf") +
+  ggtitle("total extension")
+treatment_max_leaf
+
+treatment_shoot_length <- ggplot(growth5, aes(x = Trt.comb, y = shoot_length)) +
+  geom_boxplot() +
+  geom_point() +
+  xlab("treatment") +
+  ylab("shoot_length") +
+  ggtitle("shoot_length")
+treatment_shoot_length
+
+treatment_baby_leaf <- ggplot(growth5, aes(x = Trt.comb, y = bblf_count)) +
+  geom_boxplot() +
+  geom_point() +
+  xlab("treatment") +
+  ylab("bb_leaf") +
+  ggtitle("baby leaves")
+treatment_baby_leaf
+
+
+
+pl_int <- ggplot(data1, aes(x = Trt.comb.y, y = plt_int)) +
+  #geom_boxplot() +
+  geom_point() +
+  xlab("treatment") +
+  ylab("Pl interval") +
+  ggtitle("pl_interval")
+pl_int
+
+## no effect of RGR and treatments
+mod1 <- lm(RGR.corr ~ trt*trt_density, data = growth5)
+summary(mod1)
+
+mod1a <- lme(RGR.corr ~ trt*trt_density, random = ~ 1 | Pl.no, data = growth5)
+
+## hint of an effect of sheath length and treatments
+mod2 <- lm(sheath_length ~ trt*trt_density, data = growth5)
+summary(mod2)
+
+mod2b <- lm(sheath_width ~ trt*trt_density, data = growth5)
+summary(mod2b)
+
+mod2a <- lme(sheath_length ~ trt*trt_density, random = ~ 1 | Pl.no, data = growth5)
+summary(mod2a)
+
+## extension did not vary with treatments, but did vary with sheath length and treatment
+mod3 <- lm(tot_ext_corr ~ trt*trt_density, data = growth5)
+summary(mod3)
+
+mod3d <- lm(tot_ext_corr ~ sept_16_density, data = data1)
+summary(mod3d)
+
+mod3a <- lme(tot_ext_corr ~ trt*trt_density, random = ~ 1 | Pl.no, data = growth5)
+summary(mod3a)
+
+mod3b <- lm(tot_ext_corr ~ sheath_length*trt, data = growth5)
+summary(mod3b) ## check this in a figure, the coefs look weird
+
+## total leaf extension depends on sheath length
+mod3c <- lm(tot_ext_corr ~ sheath_length, data = growth5)
+summary(mod3c)
+
+# longer leaves in experimental treatments, but much shorter in low density natural
+mod4 <- lm(max_leaf4 ~ trt*trt_density, data = growth5)
+summary(mod4)
+
+#as expected
+mod5 <- lm(growth5$sheath_length ~ growth5$shoot_length)
+summary(mod5)
+
+#no effect of rgr with sheath length or number of leaves
+mod6 <- lm(RGR.corr ~ sheath_length*no_leaves, data = growth5)
+summary(mod6)
+
+#no effect of rgr with density
+mod7 <- lm(RGR.corr ~ sept_6_density, data = data1)
+summary(mod7)
+
+#RGR declined at higher density
+mod8 <- lm(RGR.corr ~ sept_16_density*trt, data = data1)
+summary(mod8)
+
+mod8 <- lme(RGR.corr ~ sept_16_density*trt, random = ~ 1 | plot, data = data1)
+summary(mod8)
+
+## where am i at with this? 
+## shoot length and longest leaf do vary among plots
+## no clear role of sheath length, which is odd. there is a pretty clear correlation between sheath length and shoot length (as we would expect) with some exceptions and some of those are the plots where i identified some in consistencies. 
+## i have highest confidence in shoot length and then sheath length data. it is possible they measured not the max sheath... but even so i think we can use this relationship. 
+## worth doing leaf elongation of top 3 leaves?
+
+## their activity can be make a few plots to explore correlations, describe average conditions and variation, explore plastochrone interval, leaf extenstion and RGR metrics. 
