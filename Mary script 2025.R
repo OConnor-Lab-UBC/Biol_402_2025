@@ -13,6 +13,11 @@ library(effects)
 #Read in data ----
 density <- read.csv(file = "./density_2025.csv")
 growth <- read.csv(file = "./biol402_growth_shoot_data.csv")
+epiphytes <- read.csv(file = "./epiphytes.csv")
+
+
+
+# Cleaning data -----------------------------------------------------------
 
 ## clean data
 ### add treatment combined term, and density difference term, rename plot number. 
@@ -96,6 +101,15 @@ View(density)
 names(density)
 View(growth2)
 
+## epiphyte rows with problems due to missing data (so could be updated)
+epiphytes1 <- epiphytes %>%
+  filter(!(epi_shoot_length == "NA2")) %>%
+  select(c("plot", "trt_density", "trt", "epi_shoot_length", "epi_shoot_width", "epi_shoot_no_blades", "chla_avg")) %>%
+  rename(Pl.no = plot) %>%
+  mutate(Pl.no = as.character(Pl.no)) %>%
+  mutate(LA = epi_shoot_length * epi_shoot_width * epi_shoot_no_blades) %>%
+  mutate(epi_shoot = chla_avg / LA)
+
 ## merge sept 6th density and sept 16th density in here
 
 data1 <- left_join(density1, growth5, by = "Pl.no")
@@ -106,12 +120,17 @@ data_for_class <- left_join(density1, growth_for_class, by = "Pl.no")
 data_for_class <- data_for_class %>%
   rename(plot = Pl.no)
 
-View(data1)
+epi_data_density <- left_join(epiphytes1, density1, by = "Pl.no") 
+epi_class <- epi_data_density %>%
+  rename(plot = Pl.no) %>%
+  rename(Treatment = Treament)
+
 
 
 write.csv(density1, "density_class.csv")
 write.csv(growth_for_class, "growth_class.csv")
 write.csv(data1, "combined.csv")
+write.csv(epi_class, "epiphytes_class.csv")
 
 
 # #Visualization - density ------------------------------------------------
@@ -302,6 +321,54 @@ no_leaves
 
 # next steps: remove outliers for now, then create class exercise to describe growth and look for patterns in these data. 
 
+hist(epi_class$epi_shoot)
+epi_treatment <- ggplot(epi_class, aes(x = trt_density, y = epi_shoot)) +
+  geom_point() +
+  geom_boxplot() +
+  xlab("Treatment") +
+  ylab("Epiphytes / cm2") +
+  ggtitle("epiphytes / cm2")
+epi_treatment
+
+mod_e <- lm(epi_shoot ~ trt_density*trt, data = epi_class)
+summary(mod_e)
+
+mod_e1 <- lm(epi_shoot ~ trt_density, data = epi_class)
+summary(mod_e1)
+
+mod_e2 <- lm(epi_shoot ~ sept_16_density, data = epi_class)
+summary(mod_e2)
+
+mod_e3 <- lm(epi_shoot_length ~ trt_density*trt, data = epi_class)
+summary(mod_e3)
+
+epi_density <- ggplot(epi_class, aes(x = sept_16_density, y = epi_shoot)) +
+  geom_point() +
+  xlab("density") +
+  ylab("Epiphytes / cm2") +
+  ggtitle("epiphytes / cm2")
+epi_density
+
+epi_per_shoot <- ggplot(epi_class, aes(x = epi_shoot_length, y = epi_shoot)) +
+  geom_point() +
+  xlab("shoot length") +
+  ylab("Epiphytes / cm2") +
+  ggtitle("epiphytes / cm2")
+epi_per_shoot
+
+epi_shoots <- ggplot(epiphytes, aes(x = epi_shoot_sheath, y = epi_shoot_length)) +
+  geom_point() +
+  xlab("Sheath") +
+  ylab("Shoot") +
+  ggtitle("Shoot by Sheath epiphytes")
+epi_shoots
+
+epi_shootL <- ggplot(epi_class, aes(x = Trt.comb, y = epi_shoot_length)) +
+  geom_point() +
+  xlab("Treatment") +
+  ylab("Shoot") +
+  ggtitle("Shoot by Sheath epiphytes")
+epi_shootL
 
 # ## exploring relationships among shoot size and growth rate -------------
 
