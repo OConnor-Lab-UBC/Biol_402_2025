@@ -68,8 +68,7 @@ growth3 <- growth2 %>%
   filter(!(Pl.no == "6" & shoot == "1")) %>%
   filter(!(Pl.no == "8" & shoot == "2")) %>%
   filter(!(Pl.no == "12" & shoot == "2")) %>%
-  filter(!(Pl.no == "12" & shoot == "3")) %>%
-  filter(!(Pl.no == "1" & shoot == "3")) # maybe its in TA data
+  filter(!(Pl.no == "12" & shoot == "3"))
 
 # relative to max_leaf 3 estimate: 
 # for plot 22: leaf length = leaf + sheath length
