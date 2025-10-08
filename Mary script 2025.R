@@ -117,7 +117,8 @@ data1 <- data1 %>%
 
 data_for_class <- left_join(density1, growth_for_class, by = "Pl.no")
 data_for_class <- data_for_class %>%
-  rename(plot = Pl.no)
+  rename(plot = Pl.no) %>%
+  select( -c("Treament", "Trt_density", "Trt.comb")) 
 
 epi_data_density <- left_join(epiphytes1, density1, by = "Pl.no") 
 epi_class <- epi_data_density %>%
@@ -127,7 +128,7 @@ epi_class <- epi_data_density %>%
 
 
 write.csv(density1, "density_class.csv")
-write.csv(growth_for_class, "growth_class.csv")
+write.csv(data_for_class, "growth_class.csv")
 write.csv(data1, "combined.csv")
 write.csv(epi_class, "epiphytes_class.csv")
 
@@ -621,3 +622,26 @@ summary(mod8)
 ## worth doing leaf elongation of top 3 leaves?
 
 ## their activity can be make a few plots to explore correlations, describe average conditions and variation, explore plastochrone interval, leaf extenstion and RGR metrics. 
+
+
+# midterm questions -------------------------------------------------------
+
+Kd.func <- function (z) (1/z) * log(E.0 / E.z)
+Ez_func <- function (K) E.0 * exp(-K*z)
+
+z <- seq(1,100,1)
+E.0 <- 2000
+E.z <- 300
+
+Kd.func(3)
+
+z<- 30
+Ez_func(.2)
+
+treatment_baby_leaf <- ggplot(growth5, aes(x = Trt.comb, y = bblf_count)) +
+  geom_boxplot() +
+  geom_point() +
+  xlab("treatment") +
+  ylab("bb_leaf") +
+  ggtitle("baby leaves")
+treatment_baby_leaf
