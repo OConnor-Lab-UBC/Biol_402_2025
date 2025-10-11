@@ -61,7 +61,6 @@ growth2 <- growth2 %>%
 ## rows with problems, based on comparing max shoot length to leaf lengths
 growth3 <- growth2 %>%
   filter(!(Pl.no == "2" & shoot == "2")) %>%
-  filter(!(Pl.no == "14" & shoot == "1")) %>%
   filter(!(Pl.no == "9" & shoot == "2")) %>%
   filter(!(Pl.no == "21" & shoot == "3")) %>%
   filter(!(Pl.no == "10" & shoot == "2")) %>%
