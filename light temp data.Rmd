@@ -1,0 +1,117 @@
+---
+title: "402 temp light data"
+output: html_document
+date: "2025-10-06"
+---
+
+library(stringr)
+
+```{r setup, include=FALSE}
+hobo <- read_csv("./data/sept_6_15_temp_light.csv")
+hobo$`plot` <- factor(hobo$`plot`)
+names(hobo)
+```
+
+```{r}
+library(dplyr)
+hobo_filtered <- hobo %>%
+  filter(lux > 0) %>%
+  filter(!str_detect(time, "9/6/"))
+```
+
+```{r}
+treatment_summary <- hobo_filtered %>%
+  group_by(treatment) %>%
+  summarize(
+    mean_temp = mean(temp, na.rm = TRUE),
+    min_temp = min(temp, na.rm = TRUE),
+    max_temp = max(temp, na.rm = TRUE),
+    sd_temp = sd(temp, na.rm = TRUE),
+    mean_lux = mean(lux, na.rm = TRUE),
+    min_lux = min(lux, na.rm = TRUE),
+    max_lux = max(lux, na.rm = TRUE),
+    sd_lux = sd(lux, na.rm = TRUE),
+    n_obs = n(),
+    .groups = "drop"
+  )
+treatment_summary
+write.csv(treatment_summary, "light_temp_treatment.csv")
+```
+
+```{r}
+plot_summary <- hobo_filtered %>%
+  group_by(plot) %>%
+  summarize(
+    mean_temp = mean(temp, na.rm = TRUE),
+    min_temp = min(temp, na.rm = TRUE),
+    max_temp = max(temp, na.rm = TRUE),
+    sd_temp = sd(temp, na.rm = TRUE),
+    mean_lux= mean(lux, na.rm = TRUE),
+    min_lux = min(lux, na.rm = TRUE),
+    max_lux = max(lux, na.rm = TRUE),
+    sd_lux = sd(lux, na.rm = TRUE),
+    n_obs = n(),
+    .groups = "drop"
+  )
+
+plot_summary
+write.csv(plot_summary, "light_temp_plot.csv")
+```
+
+```{r}
+# Temperature
+temp_aov <- aov(temp ~ treatment, data = hobo_filtered)
+summary(temp_aov)
+temp_tukey <- TukeyHSD(temp_aov)
+```
+
+```{r}
+# Light
+lux_aov <- aov(lux ~ treatment, data = hobo_filtered)
+summary(lux_aov)
+lux_tukey <- TukeyHSD(lux_aov)
+```
+```{r}
+library(multcompView)
+library(ggplot2)
+
+temp_letters <- multcompLetters4(temp_aov, temp_tukey)
+temp_signif <- data.frame(
+  treatment = names(temp_letters$`treatment`$Letters),
+  letters = temp_letters$`treatment`$Letters)
+temp_signif
+
+temp_bp <- ggplot(hobo_filtered, aes(x = factor(treatment), y = temp)) +
+  geom_boxplot(fill = "lightblue", color = "darkblue") +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "navy") +
+  geom_text(data = temp_signif, 
+            aes(x = treatment, y = max(hobo_filtered$temp) + 1, label = letters),
+            inherit.aes = FALSE, size = 5) +
+  labs(x = "Treatment", y = "Temperature (°C)", title = "Temperature per Treatment") +
+  theme_minimal()
+
+temp_bp
+
+```
+```{r}
+library(multcompView)
+library(ggplot2)
+
+lux_letters <- multcompLetters4(lux_aov, lux_tukey)
+lux_signif <- data.frame(
+  treatment = names(temp_letters$`treatment`$Letters),
+  letters = temp_letters$`treatment`$Letters)
+lux_signif
+
+lux_bp <- ggplot(hobo_filtered, aes(x = factor(treatment), y = lux)) +
+  geom_boxplot(fill = "orange", color = "darkorange") +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "darkorange") +
+  geom_text(data = lux_signif, 
+            aes(x = treatment, y = max(hobo_filtered$lux) + 10, label = letters),
+            inherit.aes = FALSE, size = 5) +
+  labs(x = "Treatment", y = "Light, Lux", title = "Light Level per Treatment") +
+  theme_minimal()
+
+lux_bp
+
+```

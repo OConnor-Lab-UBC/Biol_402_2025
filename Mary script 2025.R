@@ -8,16 +8,18 @@ library(nlme)
 library(car)
 library(ggplot2)
 library(effects)
+library(vegan)
 
 
 #Read in data ----
-density <- read.csv(file = "./density_2025.csv")
-growth <- read.csv(file = "./biol402_growth_shoot_data.csv")
-epiphytes <- read.csv(file = "./epiphytes.csv")
+density <- read.csv(file = "./data/density_2025.csv")
+growth <- read.csv(file = "./data/biol402_growth_shoot_data.csv")
+epiphytes <- read.csv(file = "./data/epiphytes.csv")
+epifauna_shoots <- read.csv(file = "./data/epifauna_shoots.csv")
+epifauna <- read.csv(file = "./data/epifauna.csv")
+hobo_summary <- read.csv(file = "./data/light_temp_plot.csv")
 
-
-
-# Cleaning data -----------------------------------------------------------
+# Cleaning data ----------------------------------------------------------
 
 ## clean data
 ### add treatment combined term, and density difference term, rename plot number. 
@@ -56,18 +58,19 @@ growth2 <- growth2 %>%
 ## total leaf extension estimate should include ref_length. 
 
 ## rows to remove b/c of possible errors in how leaf length was estimated 
-#plot 12 shoots 2,3; plot 14 shoot 1, plot 9 shoot 2 (TA data), plot 21 shoot 3 (TA); plot 20 something is wrong; plot 10 shoot 2, plot 6 shoot 1, plot 8 shoot 2
+#plot 12 shoots 2,3; plot 9 shoot 2 (TA data), plot 21 shoot 3 (TA); plot 20 something is wrong; plot 10 shoot 2, plot 6 shoot 1, plot 8 shoot 2
 
 ## rows with problems, based on comparing max shoot length to leaf lengths
+
 growth3 <- growth2 %>%
   filter(!(Pl.no == "2" & shoot == "2")) %>%
   filter(!(Pl.no == "9" & shoot == "2")) %>%
   filter(!(Pl.no == "21" & shoot == "3")) %>%
   filter(!(Pl.no == "10" & shoot == "2")) %>%
   filter(!(Pl.no == "6" & shoot == "1")) %>%
-  filter(!(Pl.no == "8" & shoot == "2")) %>%
-  filter(!(Pl.no == "12" & shoot == "2")) %>%
-  filter(!(Pl.no == "12" & shoot == "3"))
+  filter(!(Pl.no == "8" & shoot == "2"))
+ # filter(!(Pl.no == "12" & shoot == "2")) %>%
+ # filter(!(Pl.no == "12" & shoot == "3"))
 
 # relative to max_leaf 3 estimate: 
 # for plot 22: leaf length = leaf + sheath length
@@ -90,6 +93,13 @@ growth5 <- growth4 %>%
   mutate(RGR.corr = tot_ext_corr / sheath_length) %>%
   mutate(RGR.day.corr = RGR.corr/growth_days) 
 
+plot_summary_growth <- growth5 %>%
+  group_by(Pl.no) %>%
+  summarize(GS_length = mean(shoot_length, na.rm = TRUE),
+            GS_width = mean(shoot_width, na.rm = TRUE),
+            GS_leaves = mean(no_blades, na.rm = TRUE),
+            RGR = mean(RGR.corr))
+
 growth_for_class <- growth5 %>%
   select( -c("date_marked", "date_collected", "total_lf_ext", "rgr", "rgr_d", "RGR.calc", "RGR.day.calc", "plt_int", "max_leaf", "max_leaf2", "max_leaf3", "max_leaf4", "total.ext.calc", "RGR.corr", "RGR.day.corr", "sheath_width", "trt_density", "trt", "Trt.comb") ) %>%
   rename(Total_extension = tot_ext_corr) #%>%
@@ -109,7 +119,6 @@ epiphytes1 <- epiphytes %>%
   mutate(epi_shoot = chla_avg / LA)
 
 ## merge sept 6th density and sept 16th density in here
-
 data1 <- left_join(density1, growth5, by = "Pl.no")
 data1 <- data1 %>%
   rename(plot = Pl.no)
@@ -124,6 +133,86 @@ epi_class <- epi_data_density %>%
   rename(plot = Pl.no) %>%
   rename(Treatment = Treament)
 
+
+View(epifauna_shoots)
+
+# we want a dataframe with mean shoot metrics so we can estimate LAI. 
+
+epifauna_shoots1 <- epifauna_shoots %>%
+  group_by(plot) %>%
+  summarize(mean_length = mean(shoot_length, na.rm = TRUE),
+            mean_width = mean(shoot_width, na.rm = TRUE),
+            mean_leaves = mean(no_leaves, na.rm = TRUE),
+            density = mean(number_shoots, na.rm = TRUE)) %>%
+  mutate(LAI = (((mean_length*mean_width*mean_leaves) * 2)*density)/625) %>%
+  rename(Pl.no = plot) %>%
+  mutate(Pl.no = as.character(Pl.no))
+
+#merge plot density and LAI with invert diversity metrics
+
+epifauna_density <- left_join(epifauna_shoots1, density1, by ="Pl.no")
+
+
+epifauna1 <- epifauna %>%
+  select(-c("X", "X.1", "X.2", "plot")) %>%
+  rowwise() %>%
+  mutate(abundance = sum(c_across(Amphipods:mite))) %>%
+  ungroup()
+# %>%
+  #rename(Pl.no = plot) %>%
+  #mutate(Pl.no = as.character(Pl.no))
+
+Pl.no = factor(epifauna$plot)
+Abundance = epifauna1$abundance
+
+Shannon = diversity(epifauna1, index = "shannon")
+
+epifauna_div <- data.frame(Pl.no = Pl.no, Shannon = Shannon, Abundance = Abundance)
+
+epifauna2 <- left_join(epifauna_div, density1, by ="Pl.no") 
+epifauna3 <- left_join(epifauna2, epifauna_shoots1)
+
+
+
+## make class datafiles
+epi_class <- epi_data_density %>%
+  rename(plot = Pl.no) %>%
+  rename(Treatment = Treament)
+
+hobos <- hobo_summary %>%
+  rename(Pl.no = plot) %>%
+  mutate(Pl.no = as.character(Pl.no)) %>%
+  select(c("Pl.no", "mean_temp", "mean_lux"))
+
+
+# final class summary data: 
+# take plot number, treatments and sept 6 values from density 1
+# take 
+
+Summary_data <- density1 %>%
+  select(Pl.no, Treament, Trt_density, Trt.comb, sept_16_density, sept_16_macro, sept_16_detritus, sept_16_zj)
+
+# add in plot-level summaries of growth shoot RGR, length and width
+Summary_data2 <- left_join(Summary_data, plot_summary_growth, by ="Pl.no")
+
+# add in epi shoot morphology and epiphytes 
+Summary_data3 <- left_join(Summary_data2, epiphytes1, by = "Pl.no") %>%
+  select(-c("trt_density", "trt", "LA", "epi_shoot"))
+
+# add in epifauna LAI and density
+Summary_data4 <- left_join(Summary_data3, epifauna_shoots1, by = "Pl.no") %>%
+  rename(EF_length = mean_length) %>%
+  rename(EF_width = mean_width) %>%
+  rename(EF_leaves = mean_leaves) %>%
+  rename(EF_density = density) %>%
+  rename(EF_LAI = LAI)
+
+# add in epifauna 
+Summary_data5 <- left_join(Summary_data4, epifauna_div, by = "Pl.no")
+
+## add in light and temp
+Summary_data_final <- left_join(Summary_data5, hobos, by = "Pl.no")
+write.csv(Summary_data_final, "Biol_402_Seagrass_Summary_2025.csv")
 
 
 write.csv(density1, "density_class.csv")
@@ -259,7 +348,7 @@ sheath_shoot <- ggplot(growth, aes(x = sheath_length, y = shoot_length)) +
   xlab("Sheath length") +
   ylab("Shoot length") +
   ggtitle("Shoot length and Sheath Length") +
-  geom_abline(intercept = 67.5581, slope = 0.8564) # you can put the results of the regression model in here for XX and YY to plot the line on the graph. 
+  geom_abline(intercept = 63.7606, slope = 0.9891) # you can put the results of the regression model in here for XX and YY to plot the line on the graph. 
 
 #this above indicates that for most of them, they measured leaf length from the cut. i cleaned up the exceptions and removed plots i couldn't figure out. some can be restored if students answer questions and with TA data perhaps. 
 
@@ -317,6 +406,73 @@ no_leaves <- ggplot(growth, aes(x = no_leaves)) +
   xlab("no_leaves") +
   ylab("Frequency")
 no_leaves
+
+
+# Visualization Epifauna Shoots -------------------------------------------
+mod1 <- lm(shoot_length~sheath_length, data = epifauna_shoots)
+
+
+sheath_shoot <- ggplot(epifauna_shoots, aes(x = sheath_length, y = shoot_length)) +
+  geom_point() +
+  xlab("Sheath length") +
+  ylab("Shoot length") +
+  ggtitle("Epifauna Shoot length and Sheath Length") +
+  geom_abline(intercept = 57.6584, slope = 1.7)
+
+density_size <- ggplot(epifauna_shoots, aes(x = sheath_length, y = number_shoots)) +
+  geom_point() +
+  xlab("Density") +
+  ylab("Shoot length") +
+  ggtitle("Epifauna Shoot length and Density") 
+
+mod1 <- lme(shoot_length~number_shoots, data = epifauna_shoots, random = ~ 1 | plot)
+summary(mod1)
+
+density_epifauna_shoots <- ggplot(epifauna_density, aes(x = sept_16_density, y = density)) +
+  geom_point() +
+  xlab("sept_16_density") +
+  ylab("Density") +
+  ggtitle("Epifauna Shoot Density by plot density") +
+  geom_abline(intercept = 57.6584, slope = 1.7)
+
+mod2 <- lm(density~sept_16_density, data = epifauna_density)
+summary(mod2)
+
+mod3 <- lm(density~ Trt.comb, data = epifauna_density)
+summary(mod3)
+
+
+
+Epifauna_Shannon <- ggplot(epifauna2, aes(x = sept_16_density, y = Shannon)) +
+  geom_point() +
+  xlab("sept_16_density") +
+  ylab("Shannon") +
+  ggtitle("Epifauna Shannon diversity by plot density") +
+  geom_abline(intercept = 57.6584, slope = 1.7)
+
+Epifauna_Abundance <- ggplot(epifauna3, aes(x = LAI, y = Abundance)) +
+  geom_point() +
+  xlab("LAI") +
+  ylab("Abundance") +
+  ggtitle("Epifauna N by LAI") 
+
+Epifauna_Abundance <- ggplot(epifauna3, aes(x = LAI, y = Shannon)) +
+  geom_point() +
+  xlab("LAI") +
+  ylab("Shannon") +
+  ggtitle("Epifauna S by LAI") 
+
+Epifauna_Richness <- ggplot(epifauna3, aes(x = Abundance, y = Shannon)) +
+  geom_point() +
+  xlab("Abundance") +
+  ylab("Shannon") +
+  ggtitle("Epifauna S by N")
+
+Epifauna_N_phyll <- ggplot(epifauna1, aes(x = (Abundance - Phyllaplysia), y = Phyllaplysia)) +
+  geom_point() +
+  xlab("Abundance") +
+  ylab("Phyllaplysia") +
+  ggtitle("Phyllaplysia")
 
 # next steps: remove outliers for now, then create class exercise to describe growth and look for patterns in these data. 
 
@@ -465,6 +621,12 @@ density_RGR <- ggplot(data1, aes(x = sept_6_density, y = RGR.calc)) +
   ggtitle("RGR") 
 density_RGR
 
+density_RGR <- ggplot(Summary_data_final, aes(x = sept_16_density, y = RGR)) +
+  geom_point() +
+  xlab("Density Sept 16") +
+  ylab("RGR") +
+  ggtitle("RGR") 
+density_RGR
 
 
 density_F_RGR <- ggplot(data1, aes(x = sept_16_density, y = RGR.calc)) +
@@ -547,7 +709,6 @@ treatment_baby_leaf <- ggplot(growth5, aes(x = Trt.comb, y = bblf_count)) +
   ylab("bb_leaf") +
   ggtitle("baby leaves")
 treatment_baby_leaf
-
 
 
 pl_int <- ggplot(data1, aes(x = Trt.comb.y, y = plt_int)) +
