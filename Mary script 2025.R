@@ -112,11 +112,11 @@ View(growth2)
 ## epiphyte rows with problems due to missing data (so could be updated)
 epiphytes1 <- epiphytes %>%
   filter(!(epi_shoot_length == "NA2")) %>%
-  select(c("plot", "trt_density", "trt", "epi_shoot_length", "epi_shoot_width", "epi_shoot_no_blades", "chla_avg")) %>%
+  select(c("plot", "trt_density", "trt", "epi_shoot_length", "epi_shoot_width", "epi_shoot_no_blades", "chla_shoot_calc")) %>%
   rename(Pl.no = plot) %>%
   mutate(Pl.no = as.character(Pl.no)) %>%
   mutate(LA = epi_shoot_length * epi_shoot_width * epi_shoot_no_blades) %>%
-  mutate(epi_shoot = chla_avg / LA)
+  mutate(epi_shoot = chla_shoot_calc / LA)
 
 ## merge sept 6th density and sept 16th density in here
 data1 <- left_join(density1, growth5, by = "Pl.no")
@@ -126,7 +126,8 @@ data1 <- data1 %>%
 data_for_class <- left_join(density1, growth_for_class, by = "Pl.no")
 data_for_class <- data_for_class %>%
   rename(plot = Pl.no) %>%
-  select( -c("Treament", "Trt_density", "Trt.comb")) 
+  rename(Treatment = Treament)
+  #select( -c("Treament", "Trt_density", "Trt.comb")) 
 
 epi_data_density <- left_join(epiphytes1, density1, by = "Pl.no") 
 epi_class <- epi_data_density %>%
@@ -137,7 +138,6 @@ epi_class <- epi_data_density %>%
 View(epifauna_shoots)
 
 # we want a dataframe with mean shoot metrics so we can estimate LAI. 
-
 epifauna_shoots1 <- epifauna_shoots %>%
   group_by(plot) %>%
   summarize(mean_length = mean(shoot_length, na.rm = TRUE),
@@ -149,9 +149,12 @@ epifauna_shoots1 <- epifauna_shoots %>%
   mutate(Pl.no = as.character(Pl.no))
 
 #merge plot density and LAI with invert diversity metrics
-
 epifauna_density <- left_join(epifauna_shoots1, density1, by ="Pl.no")
 
+groups_epifauna <- as.data.frame(density1$Trt.comb) %>%
+  rownames() %>%
+  filter(rowname != "23")
+  
 
 epifauna1 <- epifauna %>%
   select(-c("X", "X.1", "X.2", "plot")) %>%
@@ -182,7 +185,13 @@ epi_class <- epi_data_density %>%
 hobos <- hobo_summary %>%
   rename(Pl.no = plot) %>%
   mutate(Pl.no = as.character(Pl.no)) %>%
-  select(c("Pl.no", "mean_temp", "mean_lux"))
+  select(c("Pl.no", "mean_temp", "mean_lux")) 
+
+hobos_trt <- left_join(hobos, density1, by ="Pl.no") %>%
+  select(c("Pl.no", "mean_temp", "mean_lux", "Treament", "Trt_density", "Trt.comb")) %>%
+  rename(Treatment = Treament)
+
+write.csv(hobos_trt, "hobos_trt.csv")
 
 
 # final class summary data: 
