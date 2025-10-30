@@ -151,10 +151,8 @@ epifauna_shoots1 <- epifauna_shoots %>%
 #merge plot density and LAI with invert diversity metrics
 epifauna_density <- left_join(epifauna_shoots1, density1, by ="Pl.no")
 
-groups_epifauna <- as.data.frame(density1$Trt.comb) %>%
-  rownames() %>%
-  filter(rowname != "23")
-  
+groups_epifauna <- as.data.frame(density1$Trt.comb) 
+groups_epifauna <- groups_epifauna[-23,]
 
 epifauna1 <- epifauna %>%
   select(-c("X", "X.1", "X.2", "plot")) %>%
