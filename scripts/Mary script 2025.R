@@ -659,6 +659,7 @@ density_RGR <- ggplot(data1, aes(x = sept_16_density, y = RGR.corr)) +
   ylab("RGR") +
   ggtitle("RGR")
 density_RGR
+mod_d <- lm(RGR.corr ~ sept_16_density, data = data1)
 
 density_TE <- ggplot(data1, aes(x = sept_16_density, y = total.ext.calc)) +
   geom_point() +
