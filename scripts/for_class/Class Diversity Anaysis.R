@@ -115,3 +115,57 @@ ordihull(
 )
 
 # so black solid line is control high, solid dahsed is control low; solid gray is expt high, dashed grey is control low
+
+### species abundance distribution
+library(sads)
+
+sad_object <- sad(as.numeric(epifauna[1, 2:22]))
+
+## or: 
+
+hist(as.numeric(all1),
+     breaks = c(0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048), # Example log2-scale breaks
+     main = "Species Abundance Distribution (SAD)",
+     xlab = "Abundance (Individuals per Species)",
+     ylab = "Number of Species",
+     col = "skyblue",
+     border = "black")
+
+
+
+df <- data.frame(all1)
+ggplot(df, aes(x = Abundance)) +
+  geom_histogram(binwidth = .2, fill = "skyblue", color = "black") + # Adjust binwidth as needed
+  #scale_x_log10() + # Optional: use a log scale for the x-axis
+  scale_x_continuous(trans = "log2") +
+  labs(title = "Species Abundance Distribution",
+       x = "Abundance (Individuals per Species)",
+       y = "Number of Species") +
+  theme_minimal()
+
+
+### Rank abundance distributions
+# for plot 1: 
+plot1 <- as.numeric(epifauna[1, 2:22])
+P1_sorted <- sort(plot1, decreasing = TRUE)
+
+plot2 <- as.numeric(epifauna[2, 2:22])
+P2_sorted <- sort(plot2, decreasing = TRUE)
+
+plot3 <- as.numeric(epifauna[3, 2:22])
+P3_sorted <- sort(plot3, decreasing = TRUE)
+
+plot4 <- as.numeric(epifauna[4, 2:22])
+P4_sorted <- sort(plot4, decreasing = TRUE)
+
+all <- colSums(epifauna, na.rm = TRUE)
+all1 <- as.numeric(colSums(epifauna, na.rm = TRUE))
+all_sorted <- sort(all1, decreasing = TRUE)
+
+df <- data.frame(Rank = 1:length(all_sorted), Abundance = all_sorted)
+
+ggplot(df, aes(x = Rank, y = Abundance)) +
+  geom_point() +
+  scale_y_log10() + # Log-transform y-axis
+  labs(x = "Species Rank", y = "Abundance (log transformed)",
+       title = "Rank Abundance Curve")
