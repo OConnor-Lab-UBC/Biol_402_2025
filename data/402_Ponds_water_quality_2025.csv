@@ -1,0 +1,19 @@
+pond,treatment,location,depth,vol_filtered_mL,secchi_depth_M,chla ug_L sample water
+1,hybrid,DE vert,bottom,50,3.42,24.618
+1,hybrid,DES,surface,50,3.42,7.774
+1,hybrid,SES,surface,15,3.42,4.141
+2,no fish,DE vert,bottom,50,5,54.18
+2,no fish,DES,surface,50,5,3.053
+2,no fish,SES,surface,50,5,0.8556
+3,hybrid and marine,DE vert,bottom,50,0.85,
+3,hybrid and marine,DES,surface,50,0.85,
+3,hybrid and marine,SES,surface,50,0.85,
+4,no fish,DE vert,bottom,,5.5,
+4,no fish,DES,surface,50,5.5,1.0174
+4,no fish,SES,surface,50,5.5,0.9676
+5,hybrid,DE vert,bottom,,5.5,
+5,hybrid,DES,surface,50,5.5,2.3148
+5,hybrid,SES,surface,50,5.5,2.3166
+6,hybrid and marine,DE vert,bottom,,,
+6,hybrid and marine,DES,surface,50,1.5,7.694
+6,hybrid and marine,SES,surface,50,1.5,3.233

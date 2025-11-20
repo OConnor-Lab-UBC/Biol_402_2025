@@ -1,0 +1,244 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-11-17"
+---
+
+```{r setup, include=FALSE}
+# load packages
+install.packages("vegan")
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(vegan)
+```
+```{r}
+# Set working directory
+#setwd("~/Documents/BIOL402") <-- possibly different file path on your computer
+```
+```{r}
+profile_data <- read.csv("../data/402_Ponds_YSI_2025.csv") 
+water_quality <- read.csv("../data/402_Ponds_water_quality_2025.csv")
+zoop_size <- read.csv("../data/BIOL402_zoop_sizes.csv")
+zoop_class <- read.csv("../data/BIOL402_zoop_class.csv") 
+```
+```{r}
+colnames(profile_data)
+```
+```{r}
+colnames(water_quality)
+```
+```{r}
+colnames(zoop_size)
+```
+```{r}
+colnames(zoop_class)
+```
+
+```{r}
+dissolved_o2_plot <- profile_data %>%
+  ggplot(aes( x = depth_m, y = DO_mg_L,color=DO_mg_L)) +
+  theme_classic() +
+  geom_point() + 
+  geom_line() +
+  xlab("Depth (m)")+  ylab(expression(Dissolved~oxygen~(mg~O[2]~L^-1)))+ 
+  scale_y_continuous(position = "right") +
+  scale_x_reverse() + 
+  coord_flip() + 
+  facet_wrap(~pond)
+dissolved_o2_plot
+```
+```{r}
+temperature_profile <- profile_data %>%
+  ggplot(aes( x = depth_m, y = temp_C,color= temp_C)) +
+  theme_classic() +
+  geom_point() + 
+  geom_line() +
+  labs(x = "Depth (m)",  y = "Temperature (°C)")+
+  scale_y_continuous(position = "right") +
+  scale_x_reverse() + 
+  coord_flip() + 
+  facet_wrap(~pond)
+
+temperature_profile
+```
+```{r}
+water_quality_plot_bylocation <- water_quality %>%
+  ggplot(aes(x = location, 
+             y = chla.ug_L.sample.water)) + 
+  geom_boxplot() + 
+  geom_jitter(aes(color = factor(pond)),
+              width = 0.3, size = 3, alpha = 0.7) +
+  scale_color_brewer(palette = "Set1") + 
+  theme_classic() + 
+  xlab("Pond sample location") + 
+  ylab("Chlorophyll concentration (ug/L)") +
+  labs(color = "Pond")
+
+water_quality_plot_bylocation
+
+
+
+```
+```{r}
+water_quality_plot_bytreatment <- water_quality %>%
+  ggplot(aes(x = treatment, 
+             y = chla.ug_L.sample.water)) + 
+  geom_boxplot() + 
+  geom_jitter(aes(color = factor(pond)),
+              width = 0.3, size = 3, alpha = 0.7) +
+  scale_color_brewer(palette = "Set1") + 
+  theme_classic() + 
+  xlab("Pond sample Treatment") + 
+  ylab("Chlorophyll concentration (ug/L)") +
+  labs(color = "Pond")
+
+water_quality_plot_bytreatment
+
+```
+
+
+```{r}
+ggplot(water_quality, aes(x = factor(pond), y = secchi_depth_M)) +
+  geom_point(size = 3, color = "darkblue", alpha = 0.7) +
+  theme_classic() +
+  xlab("Pond") +
+  ylab("Secchi Depth (m)")
+
+
+```
+```{r}
+
+zoop_class_long <- zoop_class %>%
+  pivot_longer(
+    cols = copepod:mite,  # Specify the columns to pivot
+    names_to = "species",            # New column for species names
+    values_to = "count"              # New column for counts
+  )
+
+# View the reshaped dataframe
+print(zoop_class_long)
+
+
+```
+
+```{r}
+zoop_class2 <- zoop_class_long %>%
+  mutate(
+    density_count_per_L = (count / processed_sample_mL) *
+              total_sample_mL / tow_volume_L
+  )
+
+print(zoop_class2)
+colnames(zoop_class2)
+
+```
+
+```{r}
+zoop_class_plot <- zoop_class2 %>%
+  ggplot(aes(x = factor(pond),
+             y = density_count_per_L,
+             fill = factor(species))) +
+  geom_bar(stat = "identity", color = "black") +
+  theme_classic() +
+  ylab("Zooplankton density (Ind / L)") +
+  xlab("Pond")
+
+zoop_class_plot
+
+```
+
+```{r}
+rank_df <- zoop_class2 %>%
+  group_by(pond) %>%
+  arrange(pond, desc(density_count_per_L)) %>%
+  mutate(rank = row_number()) %>%
+  ungroup()
+
+ggplot(rank_df, aes(x = rank, y = density_count_per_L)) +
+  geom_line() +
+  geom_point() +
+  scale_y_log10() +
+  theme_classic() +
+  labs(x = "Species Rank",
+       y = "Zooplankton Density (Ind / L, log scale)") +
+  facet_wrap(~ pond)
+
+```
+
+```{r}
+zoop_size_long <- zoop_size %>%
+  pivot_longer(
+    cols = starts_with("X"),          
+    names_to = "size_class",
+    values_to = "count"
+  ) %>%
+  mutate(size_class = case_when(
+    size_class == "X.0.5"       ~ "0-0.5",
+    size_class == "X0.51.0.75"  ~ "0.51-0.75",
+    size_class == "X0.76.1"     ~ "0.76-1",
+    size_class == "X1.1.1.5"    ~ "1.1-1.5",
+    size_class == "X1.6.2"      ~ "1.6-2",
+    size_class == "X.2.1"       ~ "2+",
+    TRUE ~ size_class
+  )) %>%
+  
+  mutate(size_class = factor(size_class, levels = c("0-0.5","0.51-0.75","0.76-1","1.1-1.5","1.6-2","2+"))) %>%
+  
+  mutate(density_count_per_L = (count / processed_sample_mL) * total_sample_mL / tow_volume_L)
+
+print(zoop_size_long)
+```
+
+```{r}
+
+ggplot(zoop_size_long, aes(x = size_class, y = density_count_per_L)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ pond) +
+  theme_classic() +
+  labs(x = "Zooplankton Size Class",
+       y = "Density (Ind / L)",
+       fill = "Size Class") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+```{r}
+#COPIED FROM 2024 CLASS, WILL NEED WORK TO ADOPT FOR OUR DATA
+
+# Now we can do some diversity analyses and plots using the "vegan" package in R
+
+
+# To make the dataframe easier to work with, we can set the first column (pond_id) to be the name for each row and get rid of the column itself.
+zoops2<-as.data.frame(zoops2)
+rownames(zoops2) <- zoops2$pond_ID #making the first column of zoops2 ()
+
+zoops_cleaned <- zoops_long %>%
+  select(-tow_diameter_m, -tow_length_m, -NOTES) %>%  # Remove unnecessary columns
+  filter(count > 0) %>%  # Optionally filter out counts that are zero
+  pivot_wider(names_from = species, values_from = count, values_fill = list(count = 0))  # Create a community matrix
+
+# Prepare the data for NMDS
+community_matrix <- zoops_cleaned %>%
+  select(-pond_ID, -treatment, -tow_location) %>%  # Exclude non-numeric columns
+  as.matrix()  # Convert to matrix for vegan
+
+# Run NMDS
+nmds_result <- metaMDS(community_matrix, k = 2)
+
+# Create a dataframe with NMDS scores
+nmds_scores <- as.data.frame(scores(nmds_result)) %>%
+  rownames_to_column(var = "sample") %>%
+  left_join(zoops_cleaned %>% select(sample = row_number(), treatment), by = "sample")
+
+# Plot NMDS with polygons for treatment
+ggplot(nmds_scores, aes(x = NMDS1, y = NMDS2, color = treatment)) +
+  geom_point(size = 3) +
+  geom_polygon(aes(fill = treatment), alpha = 0.3, color = NA) +  # Add polygons
+  theme_classic() +
+  labs(title = "NMDS Plot with Treatment Polygons", x = "NMDS 1", y = "NMDS 2") +
+  theme(legend.position = "right")
+
+```
+

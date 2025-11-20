@@ -1,0 +1,19 @@
+pond,treatment,location,processed_sample_mL,total_sample_mL,percent_sampled,tow_volume_L,<0.5,0.51-0.75,0.76-1,1.1-1.5,1.6-2,>2.1
+1,hybrid,DE vert,11,95,11.6,70.3,9,9,4,12,6,6
+1,hybrid,DES,7.5,47.5,15.8,502.4,1319,5,1,0,1,0
+1,hybrid,SES,7,52.5,13.3,502.4,1681,4,4,1,0,0
+2,no fish,DE vert,22.5,51,44.1,157,0,2,26,1,2,3
+2,no fish,DES,17.5,47.5,36.8,628,5,9,26,11,2,2
+2,no fish,SES,36.5,50,73,628,13,9,29,9,2,36
+3,hybrid and marine,DE vert,39,249.5,15.6,157,35,23,5,19,4,16
+3,hybrid and marine,DES,15,55,27.3,439.6,3,0,0,0,4,0
+3,hybrid and marine,SES,44,101,43.6,439.6,0,2,1,0,0,0
+4,no fish,DE vert,6,50,12,70.3,20,55,1,0,0,0
+4,no fish,DES,9,43,20.9,502.4,0,1,29,247,30,0
+4,no fish,SES,23.5,43,54.7,502.4,125,3,3,10,1,0
+5,hybrid,DE vert,51,98,52,157,36,56,30,5,3,11
+5,hybrid,DES,8,47.5,16.8,628,285,13,1,0,0,0
+5,hybrid,SES,72.95,85,85.8,628,31,34,8,6,10,1
+6,hybrid and marine,DE vert,,,,,,,,,,
+6,hybrid and marine,DES,48.8,175,27.9,861.6,92,7,5,1,0,1
+6,hybrid and marine,SES,38,147.5,25.8,861.6,0,1,1,1,0,2
