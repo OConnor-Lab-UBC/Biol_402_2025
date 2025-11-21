@@ -4,6 +4,8 @@ output: html_document
 date: "2025-11-17"
 ---
 
+Mary's notes. We need an assignment to work with densities per L, diversity and size. maybe code for a size spectrum and a RAD? can we make this into an assignment by giving them some code to work with? perhaps NMDS for the different pond zones?
+
 ```{r setup, include=FALSE}
 # load packages
 install.packages("vegan")
