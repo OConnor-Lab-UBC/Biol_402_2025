@@ -8,7 +8,7 @@ Mary's notes. We need an assignment to work with densities per L, diversity and 
 
 ```{r setup, include=FALSE}
 # load packages
-install.packages("vegan")
+#install.packages("vegan")
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
@@ -49,6 +49,7 @@ dissolved_o2_plot <- profile_data %>%
   coord_flip() + 
   facet_wrap(~pond)
 dissolved_o2_plot
+ggsave("Oxygen.jpg", dissolved_o2_plot)
 ```
 ```{r}
 temperature_profile <- profile_data %>%
