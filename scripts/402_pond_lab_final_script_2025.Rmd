@@ -1,0 +1,218 @@
+---
+title: "Zoops"
+output: html_document
+date: "2025-11-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(vegan)
+library(readxl)
+library(tidyr)
+library(stringr)
+library(ggrepel)
+library(RColorBrewer)
+```
+```{r}
+#setwd("YOUR DATA PATH")
+getwd()
+```
+```{r}
+#load in class zooplankton data
+zoops <- read.csv("../data/402_zoops_long.csv", check.names = FALSE)
+
+#load in YSI and water quality data
+profile_data <- read.csv("../data/402_Ponds_YSI_2025.csv") 
+profile_data <- profile_data %>%
+  mutate(pond = as.factor(pond))
+water_quality <- read.csv("../data/402_Ponds_water quality_2025.csv")
+
+#create dataframe without rotifers
+zoops_no_rotifers <- zoops  |> 
+  filter(taxa != "Rotifer")
+
+```
+```{r}
+endpoints <- profile_data  |> 
+  group_by(pond, treatment)  |> 
+  slice(which.max(depth_m))
+
+dissolved_o2_plot <- profile_data  |> 
+  ggplot(aes(x = DO_mg_L, y = depth_m,
+             group = pond,
+             color = DO_mg_L)) +
+  geom_path(size = 1.1) +
+  geom_point() +
+  scale_y_reverse() +
+  xlab("Depth (m)")+
+  ylab(expression(Dissolved~oxygen~(mg~O[2]~L^-1)))+ 
+  geom_text_repel(
+    data = endpoints,
+    aes(label = pond),
+    nudge_x = 0.2,
+    segment.size = 0.3,
+    size = 5
+  ) +
+  theme_classic() +
+  facet_wrap(~ treatment)
+dissolved_o2_plot
+```
+```{r}
+endpoints_temp <- profile_data  |> 
+  group_by(pond, treatment)  |> 
+  slice(which.max(depth_m))
+
+temp_plot <- profile_data  |> 
+  ggplot(aes(x = temp_C, y = depth_m,
+             group = pond,
+             color = temp_C)) +
+  geom_path(size = 1.1) +
+  geom_point() +
+  scale_y_reverse() +
+  scale_color_distiller(
+  palette = "OrRd",
+  direction = 1,
+  name = "Temperature (°C)")+
+  labs(x = "Depth (m)",  
+       y = "Temperature (°C)")+
+  geom_text_repel(
+    data = endpoints,
+    aes(label = pond),
+    nudge_x = 0.2,
+    segment.size = 0.3,
+    size = 5
+  ) +
+  theme_classic() +
+  facet_wrap(~ treatment)
+temp_plot
+```
+```{r}
+water_quality_plot_bylocation <- water_quality |> 
+  ggplot(aes(x = location, 
+             y = chla.ug_L.sample.water)) + 
+  geom_boxplot() + 
+  geom_jitter(aes(color = factor(pond)),
+              width = 0.3, size = 3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2") + 
+  theme_classic() +
+  xlab("Pond sample location") + 
+  ylab("Chlorophyll concentration (ug/L)") +
+  labs(color = "Pond")
+
+water_quality_plot_bylocation
+```
+
+```{r}
+colnames(zoops)
+```
+```{r}
+zoop_taxa_plot <- zoops  |> 
+  ggplot(aes(x = factor(pond),
+             y = density_count_per_L,
+             fill = factor(taxa))) +
+  geom_bar(stat = "identity", color = "black") +
+  theme_classic() +
+  ylab("Zooplankton density (Ind / L)") +
+  xlab("Pond")
+
+zoop_taxa_no_rotifer_plot <- zoops_no_rotifers  |> 
+  ggplot(aes(x = factor(pond),
+             y = density_count_per_L,
+             fill = factor(taxa))) +
+  geom_bar(stat = "identity", color = "black") +
+  theme_classic() +
+  ylab("Zooplankton density (Ind / L)") +
+  xlab("Pond")
+
+zoop_taxa_treat <- zoops  |> 
+  ggplot(aes(x = factor(treatment),
+             y = density_count_per_L,
+             fill = factor(taxa))) +
+  geom_bar(stat = "identity", color = "black") +
+  theme_classic() +
+  ylab("Zooplankton density (Ind / L)") +
+  xlab("Pond")
+
+zoop_taxa_no_rotifer_treat <- zoops_no_rotifers  |> 
+  ggplot(aes(x = factor(treatment),
+             y = density_count_per_L,
+             fill = factor(taxa))) +
+  geom_bar(stat = "identity", color = "black") +
+  theme_classic() +
+  ylab("Zooplankton density (Ind / L)") +
+  xlab("Pond")
+
+
+zoop_taxa_plot
+zoop_taxa_treat
+zoop_taxa_no_rotifer_plot
+zoop_taxa_no_rotifer_treat
+```
+
+```{r}
+zoop_size_pond <- zoops |> 
+  ggplot(aes(x = size, y = density_count_per_L)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ pond) +
+  theme_classic() +
+  labs(x = "Zooplankton Size Class",
+       y = "Density (Ind / L)",
+       fill = "size") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+zoop_size_pond_no_rotifer <- zoops_no_rotifers |> 
+  ggplot(aes(x = size, y = density_count_per_L)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ pond) +
+  theme_classic() +
+  labs(x = "Zooplankton Size Class",
+       y = "Density (Ind / L)",
+       fill = "size") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+zoop_size_treat <- zoops |> 
+  ggplot(aes(x = size, y = density_count_per_L)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ treatment) +
+  theme_classic() +
+  labs(x = "Zooplankton Size Class",
+       y = "Density (Ind / L)",
+       fill = "size") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+zoop_size_treat_no_rotifer <- zoops_no_rotifers |> 
+  ggplot(aes(x = size, y = density_count_per_L)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ treatment) +
+  theme_classic() +
+  labs(x = "Zooplankton Size Class",
+       y = "Density (Ind / L)",
+       fill = "size") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+zoop_size_pond
+zoop_size_pond_no_rotifer
+zoop_size_treat
+zoop_size_treat_no_rotifer
+```
+```{r}
+rank_df <- zoops_no_rotifers |> 
+  group_by(pond) |> 
+  arrange(pond, desc(density_count_per_L)) |> 
+  mutate(rank = row_number()) |> 
+  ungroup()
+
+taxa_rank_pond <- ggplot(rank_df, aes(x = rank, y = density_count_per_L)) +
+  geom_line() +
+  geom_point() +
+  scale_y_log10() +
+  theme_classic() +
+  labs(x = "Species Rank",
+       y = "Zooplankton Density (Ind / L, log scale)") +
+  facet_wrap(~ pond)
+
+taxa_rank_pond
+```
