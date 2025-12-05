@@ -7,9 +7,12 @@
 #install.packages(pacman)
 pacman::p_load(tidyverse, pwr)
 #reading in the raw fish data (edit these file paths to be wherever you saved these csv files)
-fish_raw <- read_csv("~/Downloads/pacific_rim_npr_coastalmarine_kelp_fish_community_2008-2016_data.csv") %>%
+fish_raw <- read_csv("./statistical fallacy lecture/pacific_rim_npr_coastalmarine_kelp_fish_community_2008-2016_data.csv") 
+
+
 #reading in the kelp density (edit these file paths to be wherever you saved these csv files)
-kelp <- read_csv("~/Downloads/pacific_rim_npr_coastalmarine_kelp_density_2013-2016_data.csv") %>%
+kelp_raw <- read_csv("./statistical fallacy lecture/pacific_rim_npr_coastalmarine_kelp_density_2013-2016_data.csv") 
+
   
 #cleaning up the raw fish data
 fish <- fish_raw %>% 
@@ -53,6 +56,13 @@ complete_data <- left_join(kelp, fish, by=c("site", "year", "transect"))
 # 2. Hypothesize mechanisms for why you think this pattern might exist
 # 3. Revisit these mechanisms after we do some brief analysis and a power analysis
 
+sites_fig <- ggplot(complete_data, aes(x = site, y = total_kelp_density)) +
+  geom_point() +
+  xlab("Site") +
+  ylab("Density") +
+  ggtitle("Kelp density")
+#geom_abline(intercept = 0, slope = 1)
+sites_fig
 
 # step 1: look at the relationship with 2 sites in 2015
 # dataframe just two sites
